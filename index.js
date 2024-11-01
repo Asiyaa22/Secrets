@@ -6,6 +6,7 @@ import session from "express-session";
 import passport from "passport";
 import { Strategy } from "passport-local";
 import env from "dotenv";
+import GoogleStrategy from "passport-google-oauth2";
 
 const app = express();
 const port = 3000;
@@ -55,6 +56,24 @@ app.get("/secrets", (req, res) => {
   } else {
     res.redirect("/login");
   }
+});
+
+app.get("/auth/google", passport.authenticate("google", {
+  scope: ["profile", "email"],
+})
+);
+
+app.get("/auth/google/secrets", passport.authenticate("google", {
+  successRedirect: "/secrets",
+  failureRedirect: "/login",
+})
+);
+
+app.get("/logout", (req, res) => {
+  req.logout((err) => {
+    if(err) console.log(err);
+    res.redirect("/");
+  })
 });
 
 // app.post("/login", passport.authenticate("local", {
@@ -115,7 +134,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-passport.use(
+passport.use("local",
     new Strategy({ usernameField: "mail", passwordField: "password" }, async function verify(mail, password, cb) {
 //   new Strategy(async function verify(mail, password, cb) {
     // const loginData = req.body.mail;
@@ -156,6 +175,32 @@ passport.use(
         return cb(err);
     }
 })
+);
+//google authnetication
+passport.use("google", 
+  new GoogleStrategy(
+    {
+      clientID: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      callbackURL: "http://localhost:3000/auth/google/secrets",
+      userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    },
+    async (accessToken, refreshToken, profile, cb) => {
+      console.log(profile);
+      try{
+        const result  = await db.query("SELECT * FROM users WHERE username = $1", [profile.email]);
+        if(result.rows.length === 0){
+        const newUser = await db.query("INSERT INTO users (username, password) VALUES ($1, $2)", [profile.email, "google"]);
+        cb(null, newUser.rows[0]);
+        }else{
+          //already existing USer
+          cb(null, result.rows[0]);
+        }
+      }catch(err){
+        cb(err);
+      }
+    }
+  )
 );
 
 //
