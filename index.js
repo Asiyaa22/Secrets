@@ -5,17 +5,19 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import passport from "passport";
 import { Strategy } from "passport-local";
+import env from "dotenv";
 
 const app = express();
 const port = 3000;
 const saltRounds = 10;
+env.config();
 
 const db = new pg.Client({
-  user: "postgres",
-  host: "localhost",
-  password: "151201",
-  database: "world",
-  port: 5432,
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  password: process.env.PG_PASSWORD,
+  database: process.env.PG_DATABASE,
+  port: process.env.PG_PORT,
 });
 db.connect();
 
@@ -23,7 +25,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.use(
   session({
-    secret: "MySecret",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
     cookie: {
@@ -65,7 +67,12 @@ app.post("/login", (req, res, next) => {
   passport.authenticate("local", (err, user, info) => {
     console.log("Authentication response:", { err, user, info });
     if (err) return next(err);
-    if (!user) return res.redirect("/login"); //Authentication Failed
+    if (!user){
+      // alert("Incorrect password");
+      return res.redirect("/login"); //Authentication Failed
+    }
+    // res.send("incorrect password");
+    
     req.login(user, (err) => {
       if (err) return next(err);
       res.redirect("/secrets");
