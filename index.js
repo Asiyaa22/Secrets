@@ -24,6 +24,7 @@ db.connect();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
+app.set('view engine', 'ejs'); 
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
@@ -52,7 +53,8 @@ app.get("/register", (req, res) => {
 
 app.get("/secrets", (req, res) => {
   if (req.isAuthenticated()) {
-    res.render("secrets.ejs");
+    const data = req.user.secrets;
+    res.render("secrets.ejs", { data });
   } else {
     res.redirect("/login");
   }
@@ -81,8 +83,63 @@ app.get("/logout", (req, res) => {
 //     failureRedirect: "/login",
 // }));
 
+app.get("/submit", (req, res) => {
+  console.log("Got hit by submit a secret btn");
+  res.render("submit.ejs");
+});
+app.post("/submit", async(req, res) => {
+  try{
+    if(req.isAuthenticated()){
+      // res.render("submit.ejs");
+      const secretData = req.body.secret;
+      const userLogIn = req.user.username;
+      console.log("===========");
+      console.log(`this user is currently loggedIn ${userLogIn}`);
+      console.log("===========");
+      // const feed = await db.query("INSERT INTO users (secrets) VALUES($1) WHERE username = $2", [secretData, userLogIn]);
+      const feed = await db.query("UPDATE users SET secrets = $1 WHERE username = $2 RETURNING secrets", [secretData, userLogIn]);
+      // const data = feed.rows[0].secrets;
+      const data = user.secrets;
+      //to console the secret that user has entered I need to use RETURNING clause like in code I did
+      console.log("This is the feed data ===>", data);
+      res.render("secrets.ejs", { data });
+    }else{
+      console.log("error rendering sumbit file");
+      res.redirect("/");
+    }
+  }catch(err){
+    console.log("error inserting secret", err);
+  }
+  // try{
+  //   if(req.isAuthenticated()){
+  //     const secretData = req.body.secret;
+  //     const meraSec = req.user;
+  //     console.log("The person who is logged in",meraSec);
+  //     console.log(`secretData is this ===> ${secretData}`);
+  //     const feed = await db.query("INSERT INTO users (secrets) VALUES($1) WHERE user = $2", [secretData, meraSec]);
+  //     console.log("This is the feed data ===>", feed);
+  //     res.render("submit.ejs");
+  //   }else{
+  //     res.redirect("/login");
+  //   }
+  // }catch(err){
+  //   console.log("error inserting secret", err);
+  // }
+})
+
+// app.post("/submit", async(req, res) => {
+//   try{
+//     const secretData = req.body.secret;
+//     console.log(`This is my secret data ${secretData}`);
+//     const feed = await db.query("INSERT INTO users (secret) VALUES ($1)", [secretData]);
+//     console.log(`this data is secret ${feed}`);
+//   }catch(err){
+//     console.log("error in adding secret", err);
+//   }
+// });
+
 app.post("/login", (req, res, next) => {
-    console.log("Login POST route hit with:", req.body);
+  console.log("Login POST route hit with:", req.body);
   passport.authenticate("local", (err, user, info) => {
     console.log("Authentication response:", { err, user, info });
     if (err) return next(err);
